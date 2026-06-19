@@ -2,6 +2,65 @@
 
 {% block title %}Spendly — Track Every Rupee{% endblock %}
 
+{% block head %}
+<style>
+    .video-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+    }
+
+    .video-modal.is-open { display: flex; }
+
+    .video-modal-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(15, 15, 15, 0.72);
+    }
+
+    .video-modal-dialog {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        max-width: 880px;
+    }
+
+    .video-modal-close {
+        position: absolute;
+        top: -2.75rem;
+        right: 0;
+        background: transparent;
+        border: none;
+        color: #fff;
+        font-size: 2rem;
+        line-height: 1;
+        cursor: pointer;
+        padding: 0.25rem 0.5rem;
+    }
+
+    .video-modal-frame {
+        position: relative;
+        width: 100%;
+        padding-top: 56.25%;
+        background: #000;
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+
+    .video-modal-frame iframe {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 
 <section class="hero">
@@ -19,7 +78,7 @@
         </p>
         <div class="hero-actions">
             <a href="{{ url_for('register') }}" class="btn-primary">Create free account</a>
-            <a href="#" class="btn-dark">See how it works</a>
+            <a href="#" class="btn-dark" id="see-how-btn">See how it works</a>
         </div>
     </div>
 
@@ -101,4 +160,58 @@
     </div>
 </section>
 
+<div class="video-modal" id="video-modal" aria-hidden="true">
+    <div class="video-modal-backdrop" data-close></div>
+    <div class="video-modal-dialog" role="dialog" aria-modal="true" aria-label="How Spendly works">
+        <button class="video-modal-close" type="button" aria-label="Close" data-close>&times;</button>
+        <div class="video-modal-frame">
+            <iframe id="video-frame"
+                    src=""
+                    title="How Spendly works"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen></iframe>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        var openBtn = document.getElementById('see-how-btn');
+        var modal = document.getElementById('video-modal');
+        var frame = document.getElementById('video-frame');
+        // Placeholder YouTube embed — replace the video id later.
+        var videoSrc = 'https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1&rel=0';
+
+        function openModal(e) {
+            if (e) e.preventDefault();
+            frame.src = videoSrc;
+            modal.classList.add('is-open');
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            modal.classList.remove('is-open');
+            modal.setAttribute('aria-hidden', 'true');
+            // Clearing the src stops playback so audio/video don't continue.
+            frame.src = '';
+            document.body.style.overflow = '';
+        }
+
+        if (openBtn) openBtn.addEventListener('click', openModal);
+
+        // Close when clicking the close button or the backdrop (outside the dialog).
+        modal.addEventListener('click', function (e) {
+            if (e.target.hasAttribute('data-close')) closeModal();
+        });
+
+        // Close on Escape for convenience.
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && modal.classList.contains('is-open')) closeModal();
+        });
+    })();
+</script>
 {% endblock %}
