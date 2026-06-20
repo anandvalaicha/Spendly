@@ -14,7 +14,7 @@ from flask import g, has_app_context
 from werkzeug.security import generate_password_hash
 
 # The database file. Listed in .gitignore so it is never committed.
-DATABASE = "expense_tracker.db"
+DATABASE = "spendly.db"
 
 
 # ------------------------------------------------------------------ #

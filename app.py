@@ -29,9 +29,16 @@ def register():
     name = request.form.get("name", "").strip()
     email = request.form.get("email", "").strip().lower()
     password = request.form.get("password", "")
+    confirm_password = request.form.get("confirm_password", "")
 
-    if not name or not email or not password:
-        return render_template("register.html", error="All fields are required.")
+    if not name:
+        return render_template("register.html", error="Name is required.")
+    if not email:
+        return render_template("register.html", error="Email is required.")
+    if not password:
+        return render_template("register.html", error="Password is required.")
+    if not confirm_password:
+        return render_template("register.html", error="Please confirm your password.")
     if "@" not in email:
         return render_template(
             "register.html", error="Please enter a valid email address."
@@ -40,6 +47,8 @@ def register():
         return render_template(
             "register.html", error="Password must be at least 8 characters."
         )
+    if password != confirm_password:
+        return render_template("register.html", error="Passwords do not match.")
 
     db = get_db()
     try:

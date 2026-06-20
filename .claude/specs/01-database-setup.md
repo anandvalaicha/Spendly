@@ -59,7 +59,7 @@ Nothing — this is the first step.
 
 ### A. `get_db()`
 
-- Opens connection to `spendly.db` (or `expense_tracker.db`) in project root
+- Opens connection to `spendly.db` in project root
 - Sets:
   - `row_factory = sqlite3.Row`
   - `PRAGMA foreign_keys = ON`
