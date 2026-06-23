@@ -1,5 +1,6 @@
 import os
 import sqlite3
+from datetime import datetime
 
 from flask import Flask, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -118,7 +119,67 @@ def logout():
 
 @app.route("/profile")
 def profile():
-    return "Profile page — coming in Step 4"
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    db = get_db()
+    row = db.execute(
+        "SELECT name, email, created_at FROM users WHERE id = ?",
+        (session["user_id"],),
+    ).fetchone()
+
+    # Stale session pointing at a deleted user — sign them out cleanly.
+    if row is None:
+        session.clear()
+        return redirect(url_for("login"))
+
+    name = row["name"]
+    parts = name.split()
+    if len(parts) >= 2:
+        initials = (parts[0][0] + parts[-1][0]).upper()
+    else:
+        initials = name[:2].upper()
+
+    member_since = row["created_at"] or ""
+    try:
+        member_since = datetime.strptime(
+            member_since[:19], "%Y-%m-%d %H:%M:%S"
+        ).strftime("%B %Y")
+    except ValueError:
+        pass
+
+    user = {
+        "name": name,
+        "email": row["email"],
+        "initials": initials,
+        "member_since": member_since,
+    }
+    summary = {
+        "total_spent": "1,287.50",
+        "transaction_count": 24,
+        "top_category": "Rent",
+    }
+    transactions = [
+        {"date": "Jun 05, 2026", "description": "Dinner with friends",
+         "category": "Dining", "amount": "30.00", "slug": "dining"},
+        {"date": "Jun 03, 2026", "description": "June rent",
+         "category": "Rent", "amount": "800.00", "slug": "rent"},
+        {"date": "Jun 02, 2026", "description": "Metro card top-up",
+         "category": "Transport", "amount": "12.50", "slug": "transport"},
+        {"date": "Jun 01, 2026", "description": "Weekly groceries",
+         "category": "Groceries", "amount": "45.00", "slug": "groceries"},
+    ]
+    categories = [
+        {"name": "Rent", "amount": "800.00", "percent": 62, "slug": "rent"},
+        {"name": "Groceries", "amount": "240.00", "percent": 19, "slug": "groceries"},
+        {"name": "Dining", "amount": "150.00", "percent": 12, "slug": "dining"},
+        {"name": "Transport", "amount": "97.50", "percent": 7, "slug": "transport"},
+    ]
+    return render_template(
+        "profile.html",
+        user=user, summary=summary,
+        transactions=transactions, categories=categories,
+    )
 
 
 @app.route("/expenses/add")
