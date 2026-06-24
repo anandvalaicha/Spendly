@@ -168,19 +168,45 @@ def profile():
     }
 
     # --- transactions ---
-    # Subagent 1 fills this region: build `transactions` (list of dicts with
-    # date/description/category/amount/slug) from get_recent_transactions(user_id).
+    # Shape the recent expenses for display: friendly date, 2dp amount, and a
+    # CSS slug for the category badge.
     transactions = []
+    for row in get_recent_transactions(user_id):
+        try:
+            display_date = datetime.strptime(
+                row["date"], "%Y-%m-%d"
+            ).strftime("%b %d, %Y")
+        except ValueError:
+            display_date = row["date"]
+        transactions.append({
+            "date": display_date,
+            "description": row["description"],
+            "category": row["category"],
+            "amount": "%.2f" % row["amount"],
+            "slug": slugify(row["category"]),
+        })
 
     # --- summary ---
-    # Subagent 2 fills this region: build `summary` (total_spent/transaction_count/
-    # top_category, total_spent formatted for display) from get_summary_stats(user_id).
-    summary = {"total_spent": "0.00", "transaction_count": 0, "top_category": "—"}
+    # Format the numeric total for display; pass count and top category through.
+    stats = get_summary_stats(user_id)
+    summary = {
+        "total_spent": "{:,.2f}".format(stats["total_spent"]),
+        "transaction_count": stats["transaction_count"],
+        "top_category": stats["top_category"],
+    }
 
     # --- categories ---
-    # Subagent 3 fills this region: build `categories` (list of dicts with
-    # name/amount/percent/slug) from get_category_breakdown(user_id).
-    categories = []
+    # Map the breakdown to the template shape: 2dp amount, `pct` -> `percent`,
+    # and a CSS slug for the bar fill.
+    categories = [
+        {
+            "name": cat["name"],
+            "amount": "%.2f" % cat["amount"],
+            "percent": cat["pct"],
+            "slug": slugify(cat["name"]),
+        }
+        for cat in get_category_breakdown(user_id)
+    ]
 
     return render_template(
         "profile.html",
