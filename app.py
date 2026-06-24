@@ -45,6 +45,21 @@ def inject_current_user():
     return {"current_user": current_user}
 
 
+@app.context_processor
+def inject_asset_version():
+    """Expose the stylesheet's mtime so templates can cache-bust the CSS link.
+
+    The browser refetches ``style.css`` whenever the file changes instead of
+    serving a stale cached copy.
+    """
+    css_path = os.path.join(app.static_folder, "css", "style.css")
+    try:
+        version = int(os.path.getmtime(css_path))
+    except OSError:
+        version = 0
+    return {"asset_version": version}
+
+
 # ------------------------------------------------------------------ #
 # Helpers                                                             #
 # ------------------------------------------------------------------ #
