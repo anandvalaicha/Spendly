@@ -21,7 +21,7 @@
         <div class="stat-row">
             <div class="stat-card">
                 <span class="stat-label">Total spent</span>
-                <span class="stat-value">₹{{ summary.total_spent }}</span>
+                <span class="stat-value">${{ summary.total_spent }}</span>
             </div>
             <div class="stat-card">
                 <span class="stat-label">Transactions</span>
@@ -57,7 +57,7 @@
                                 <td>
                                     <span class="tx-badge tx-badge--{{ tx.slug }}">{{ tx.category }}</span>
                                 </td>
-                                <td class="tx-amount">₹{{ tx.amount }}</td>
+                                <td class="tx-amount">${{ tx.amount }}</td>
                             </tr>
                             {% else %}
                             <tr>
@@ -76,7 +76,7 @@
                 <div class="bar-row">
                     <div class="cat-label">
                         <span class="cat-name">{{ cat.name }}</span>
-                        <span class="cat-amount">₹{{ cat.amount }}</span>
+                        <span class="cat-amount">${{ cat.amount }}</span>
                     </div>
                     <div class="bar-track">
                         <div class="bar-fill cat-fill--{{ cat.slug }}" style="width: {{ cat.percent }}%"></div>

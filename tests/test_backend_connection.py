@@ -111,7 +111,7 @@ def test_profile_authenticated_renders_real_data(client, demo_id):
 
     assert "Demo User" in body
     assert "demo@spendly.com" in body
-    assert "₹" in body
+    assert "$" in body
     assert "346.24" in body
     assert "Bills" in body
     # All seven categories appear.
@@ -132,5 +132,5 @@ def test_profile_new_user_empty_state(client, empty_user_id):
     resp = client.get("/profile")
     assert resp.status_code == 200
     body = resp.get_data(as_text=True)
-    assert "₹0.00" in body
+    assert "$0.00" in body
     assert "No transactions yet." in body
