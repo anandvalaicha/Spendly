@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics — Spendly{% endblock %}
+
+{% block content %}
+
+<section class="coming-soon">
+    <div class="coming-soon-inner">
+
+        <!-- Logo mark -->
+        <div class="coming-soon-mark" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 18 18" fill="none">
+                <polygon points="9,2 16,14 2,14" fill="currentColor" />
+            </svg>
+        </div>
+
+        <!-- Headline -->
+        <h1 class="coming-soon-title">Coming soon.</h1>
+
+        <p class="coming-soon-subtitle">
+            We're working on something. Leave your email and we'll let you
+            know when it's ready.
+        </p>
+
+        <!-- Email capture -->
+        <form class="coming-soon-form" id="notify-form" novalidate>
+            <input
+                type="email"
+                id="notify-email"
+                class="coming-soon-input"
+                placeholder="you@example.com"
+                aria-label="Email address"
+            >
+            <button type="submit" class="coming-soon-btn">Notify me</button>
+        </form>
+
+        <p class="coming-soon-confirm" id="notify-confirm" hidden>
+            Got it — we'll be in touch.
+        </p>
+
+    </div>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Mirrors the Figma design's behaviour: on submit, swap the form for a
+    // confirmation message once a plausible email has been entered.
+    (function () {
+        var form = document.getElementById("notify-form");
+        var email = document.getElementById("notify-email");
+        var confirm = document.getElementById("notify-confirm");
+
+        form.addEventListener("submit", function (e) {
+            e.preventDefault();
+            if (!email.value.includes("@")) return;
+            form.hidden = true;
+            confirm.hidden = false;
+        });
+    })();
+</script>
+{% endblock %}

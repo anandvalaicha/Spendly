@@ -200,19 +200,22 @@ def profile():
     date_from = parse_iso_date(request.args.get("date_from"))
     date_to = parse_iso_date(request.args.get("date_to"))
 
+    # ``date_from`` / ``date_to`` keep the user's validated input for redisplay
+    # in the form; ``range_from`` / ``range_to`` are what actually drive the
+    # queries — left as ``None`` unless a complete, valid, ordered range exists.
     error = None
     if date_from and date_to and date_from > date_to:
         error = "Start date must be before end date."
-        date_from = date_to = None
-
-    # Only pass bounds to the queries when a complete, valid range is active.
-    range_from = date_from if (date_from and date_to) else None
-    range_to = date_to if (date_from and date_to) else None
+        range_from = range_to = None
+    else:
+        range_from = date_from if (date_from and date_to) else None
+        range_to = date_to if (date_from and date_to) else None
 
     presets = build_presets(date.today())
+    current_range = (range_from, range_to)
     active_preset = next(
         (key for key, bounds in presets.items()
-         if bounds == (range_from, range_to)
+         if bounds == current_range
          or (bounds is None and range_from is None)),
         None,
     )
@@ -284,9 +287,18 @@ def profile():
         user=user, summary=summary,
         transactions=transactions, categories=categories,
         presets=presets, active_preset=active_preset,
-        date_from=range_from or "", date_to=range_to or "",
+        date_from=date_from or "", date_to=date_to or "",
         error=error,
     )
+
+
+@app.route("/analytics")
+def analytics():
+    # Logged-out users hitting this URL directly are bounced to the login page,
+    # mirroring the session guard used by the profile route above.
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+    return render_template("analytics.html")
 
 
 @app.route("/expenses/add")
