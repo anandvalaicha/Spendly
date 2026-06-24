@@ -59,6 +59,10 @@
                                 </td>
                                 <td class="tx-amount">${{ tx.amount }}</td>
                             </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="tx-empty">No transactions yet.</td>
+                            </tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -78,6 +82,8 @@
                         <div class="bar-fill cat-fill--{{ cat.slug }}" style="width: {{ cat.percent }}%"></div>
                     </div>
                 </div>
+                {% else %}
+                <p class="cat-empty">No spending to break down yet.</p>
                 {% endfor %}
             </div>
 

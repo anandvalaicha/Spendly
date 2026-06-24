@@ -1,4 +1,5 @@
 import os
+import re
 import sqlite3
 from datetime import datetime
 
@@ -6,6 +7,12 @@ from flask import Flask, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from database.db import get_db, init_app, init_db
+from database.queries import (
+    get_category_breakdown,
+    get_recent_transactions,
+    get_summary_stats,
+    get_user_by_id,
+)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
@@ -23,6 +30,21 @@ def inject_current_user():
     else:
         current_user = None
     return {"current_user": current_user}
+
+
+# ------------------------------------------------------------------ #
+# Helpers                                                             #
+# ------------------------------------------------------------------ #
+
+def slugify(name):
+    """Lowercase, hyphenated, alphanumeric slug for category CSS classes.
+
+    Drives the ``tx-badge--<slug>`` / ``cat-fill--<slug>`` classes. Categories
+    without a matching class (anything beyond rent/groceries/dining/transport)
+    simply fall back to the default badge/bar styling.
+    """
+    slug = re.sub(r"[^a-z0-9]+", "-", (name or "").lower())
+    return slug.strip("-")
 
 
 # ------------------------------------------------------------------ #
@@ -122,59 +144,70 @@ def profile():
     if not session.get("user_id"):
         return redirect(url_for("login"))
 
-    db = get_db()
-    row = db.execute(
-        "SELECT name, email, created_at FROM users WHERE id = ?",
-        (session["user_id"],),
-    ).fetchone()
+    user_id = session["user_id"]
 
+    # --- user info ---
+    record = get_user_by_id(user_id)
     # Stale session pointing at a deleted user — sign them out cleanly.
-    if row is None:
+    if record is None:
         session.clear()
         return redirect(url_for("login"))
 
-    name = row["name"]
+    name = record["name"]
     parts = name.split()
     if len(parts) >= 2:
         initials = (parts[0][0] + parts[-1][0]).upper()
     else:
         initials = name[:2].upper()
 
-    member_since = row["created_at"] or ""
-    try:
-        member_since = datetime.strptime(
-            member_since[:19], "%Y-%m-%d %H:%M:%S"
-        ).strftime("%B %Y")
-    except ValueError:
-        pass
-
     user = {
         "name": name,
-        "email": row["email"],
+        "email": record["email"],
         "initials": initials,
-        "member_since": member_since,
+        "member_since": record["member_since"],
     }
+
+    # --- transactions ---
+    # Shape the recent expenses for display: friendly date, 2dp amount, and a
+    # CSS slug for the category badge.
+    transactions = []
+    for row in get_recent_transactions(user_id):
+        try:
+            display_date = datetime.strptime(
+                row["date"], "%Y-%m-%d"
+            ).strftime("%b %d, %Y")
+        except ValueError:
+            display_date = row["date"]
+        transactions.append({
+            "date": display_date,
+            "description": row["description"],
+            "category": row["category"],
+            "amount": "%.2f" % row["amount"],
+            "slug": slugify(row["category"]),
+        })
+
+    # --- summary ---
+    # Format the numeric total for display; pass count and top category through.
+    stats = get_summary_stats(user_id)
     summary = {
-        "total_spent": "1,287.50",
-        "transaction_count": 24,
-        "top_category": "Rent",
+        "total_spent": "{:,.2f}".format(stats["total_spent"]),
+        "transaction_count": stats["transaction_count"],
+        "top_category": stats["top_category"],
     }
-    transactions = [
-        {"date": "Jun 05, 2026", "description": "Dinner with friends",
-         "category": "Dining", "amount": "30.00", "slug": "dining"},
-        {"date": "Jun 03, 2026", "description": "June rent",
-         "category": "Rent", "amount": "800.00", "slug": "rent"},
-        {"date": "Jun 02, 2026", "description": "Metro card top-up",
-         "category": "Transport", "amount": "12.50", "slug": "transport"},
-        {"date": "Jun 01, 2026", "description": "Weekly groceries",
-         "category": "Groceries", "amount": "45.00", "slug": "groceries"},
-    ]
+
+    # --- categories ---
+    # Map the breakdown to the template shape: 2dp amount, `pct` -> `percent`,
+    # and a CSS slug for the bar fill.
     categories = [
-        {"name": "Rent", "amount": "800.00", "percent": 62, "slug": "rent"},
-        {"name": "Groceries", "amount": "240.00", "percent": 19, "slug": "groceries"},
-        {"name": "Dining", "amount": "150.00", "percent": 12, "slug": "dining"},
-        {"name": "Transport", "amount": "97.50", "percent": 7, "slug": "transport"},
+        {
+            "name": cat["name"],
+            "amount": "%.2f" % cat["amount"],
+            "percent": cat["pct"],
+            "slug": slugify(cat["name"]),
+        }
+        for cat in get_category_breakdown(user_id)
     ]
+
     return render_template(
         "profile.html",
         user=user, summary=summary,
