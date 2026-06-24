@@ -62,6 +62,23 @@ def get_user_by_id(user_id):
     }
 
 
+def insert_expense(user_id, amount, category, date, description):
+    """Insert one expense scoped to ``user_id``; commit; return the new row id.
+
+    All values are passed as query parameters. ``description`` may be ``None``,
+    in which case it is stored as SQL ``NULL``. Note the column order matches the
+    schema in ``database/db.py`` (``amount, category, description, date``).
+    """
+    db = get_db()
+    cur = db.execute(
+        "INSERT INTO expenses (user_id, amount, category, description, date) "
+        "VALUES (?, ?, ?, ?, ?)",
+        (user_id, amount, category, description, date),
+    )
+    db.commit()
+    return cur.lastrowid
+
+
 def get_summary_stats(user_id, date_from=None, date_to=None):
     """Return ``{total_spent, transaction_count, top_category}`` for a user.
 
