@@ -12,11 +12,24 @@ from database.queries import (
     get_recent_transactions,
     get_summary_stats,
     get_user_by_id,
+    insert_expense,
 )
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
 init_app(app)
+
+# Fixed set of expense categories offered in the add-expense form. Used both to
+# render the <select> and to validate submitted values.
+CATEGORIES = (
+    "Food",
+    "Transport",
+    "Bills",
+    "Health",
+    "Entertainment",
+    "Shopping",
+    "Other",
+)
 
 with app.app_context():
     init_db()
@@ -301,9 +314,72 @@ def analytics():
     return render_template("analytics.html")
 
 
-@app.route("/expenses/add")
+@app.route("/expenses/add", methods=["GET", "POST"])
 def add_expense():
-    return "Add expense — coming in Step 7"
+    # Logged-out users are bounced to login for both GET and POST, mirroring the
+    # session guard used by profile() / analytics().
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    if request.method == "GET":
+        return render_template(
+            "add_expense.html",
+            categories=CATEGORIES,
+            amount="",
+            category="",
+            description="",
+            date=date.today().strftime("%Y-%m-%d"),
+        )
+
+    # --- POST: validate and insert ---
+    amount_raw = request.form.get("amount", "").strip()
+    category = request.form.get("category", "").strip()
+    date_raw = request.form.get("date", "").strip()
+    description = request.form.get("description", "").strip()
+
+    # Values passed back so a failed submission redisplays what the user typed.
+    form_values = {
+        "amount": amount_raw,
+        "category": category,
+        "date": date_raw,
+        "description": description,
+    }
+
+    def reject(message):
+        return render_template(
+            "add_expense.html",
+            categories=CATEGORIES,
+            error=message,
+            **form_values,
+        )
+
+    if not amount_raw:
+        return reject("Amount is required.")
+    try:
+        amount = float(amount_raw)
+    except ValueError:
+        return reject("Amount must be a number.")
+    if amount <= 0:
+        return reject("Amount must be greater than zero.")
+
+    if not category:
+        return reject("Category is required.")
+    if category not in CATEGORIES:
+        return reject("Please choose a valid category.")
+
+    if not date_raw:
+        return reject("Date is required.")
+    if parse_iso_date(date_raw) is None:
+        return reject("Please enter a valid date.")
+
+    insert_expense(
+        session["user_id"],
+        amount,
+        category,
+        date_raw,
+        description[:200] or None,
+    )
+    return redirect(url_for("profile"))
 
 
 @app.route("/expenses/<int:id>/edit")
