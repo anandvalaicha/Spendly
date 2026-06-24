@@ -79,6 +79,39 @@ def insert_expense(user_id, amount, category, date, description):
     return cur.lastrowid
 
 
+def get_expense_by_id(expense_id, user_id):
+    """Return a single expense scoped to ``user_id``, or ``None``.
+
+    The ``user_id`` clause is the ownership guard: a user can never read another
+    user's expense, and a missing row is indistinguishable from one they do not
+    own — both return ``None``.
+    """
+    db = get_db()
+    return db.execute(
+        "SELECT id, user_id, amount, category, description, date "
+        "FROM expenses WHERE id = ? AND user_id = ?",
+        (expense_id, user_id),
+    ).fetchone()
+
+
+def update_expense(expense_id, user_id, amount, category, date, description):
+    """Update one expense in place; commit; return the number of rows affected.
+
+    The ``WHERE`` clause is scoped to both ``id`` and ``user_id`` as a second
+    ownership guard, so an attempt to edit an expense the user does not own
+    changes nothing and returns ``0``. ``description`` may be ``None`` (stored as
+    SQL ``NULL``). Column order matches ``insert_expense``.
+    """
+    db = get_db()
+    cur = db.execute(
+        "UPDATE expenses SET amount = ?, category = ?, description = ?, date = ? "
+        "WHERE id = ? AND user_id = ?",
+        (amount, category, description, date, expense_id, user_id),
+    )
+    db.commit()
+    return cur.rowcount
+
+
 def get_summary_stats(user_id, date_from=None, date_to=None):
     """Return ``{total_spent, transaction_count, top_category}`` for a user.
 
@@ -112,20 +145,22 @@ def get_summary_stats(user_id, date_from=None, date_to=None):
 def get_recent_transactions(user_id, limit=10, date_from=None, date_to=None):
     """Return up to ``limit`` of the user's expenses, newest first.
 
-    Each item is ``{date, description, category, amount}`` with the raw ``date``
-    string and numeric ``amount``. A user with no expenses returns ``[]``. When
+    Each item is ``{id, date, description, category, amount}`` with the raw
+    ``date`` string and numeric ``amount``. ``id`` lets callers build per-row
+    links (e.g. the profile edit link). A user with no expenses returns ``[]``. When
     both ``date_from`` and ``date_to`` are given, only expenses inside that
     inclusive range are returned.
     """
     db = get_db()
     date_sql, date_params = _date_clause(date_from, date_to)
     rows = db.execute(
-        "SELECT date, description, category, amount FROM expenses "
+        "SELECT id, date, description, category, amount FROM expenses "
         "WHERE user_id = ?" + date_sql + " ORDER BY date DESC, id DESC LIMIT ?",
         [user_id] + date_params + [limit],
     ).fetchall()
     return [
         {
+            "id": row["id"],
             "date": row["date"],
             "description": row["description"],
             "category": row["category"],
