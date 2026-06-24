@@ -132,6 +132,36 @@ a { color: inherit; text-decoration: none; }
 
 .main-content { min-height: calc(100vh - 60px - 100px); }
 
+/* Flash messages — flashed via Flask, rendered once at the top of the page. */
+.flash-stack {
+    max-width: var(--max-width);
+    margin: 1.25rem auto 0;
+    padding: 0 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.flash {
+    border-radius: var(--radius-md);
+    padding: 0.85rem 1.25rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    border: 1px solid transparent;
+}
+
+.flash--success {
+    background: var(--accent-light);
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+.flash--error {
+    background: var(--danger-light);
+    color: var(--danger);
+    border-color: var(--danger);
+}
+
 /* ------------------------------------------------------------------ */
 /* Hero                                                                */
 /* ------------------------------------------------------------------ */
@@ -361,20 +391,25 @@ a { color: inherit; text-decoration: none; }
 
 .btn-ghost {
     display: inline-block;
-    background: transparent;
-    color: var(--ink-soft);
-    padding: 0.65rem 1.5rem;
-    border-radius: var(--radius-sm);
-    font-size: 0.9rem;
-    font-weight: 500;
-    border: 1px solid var(--border);
-    transition: all 0.2s;
+    background: var(--paper-card);
+    color: var(--accent);
+    padding: 0.5rem 1.35rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border: 1px solid var(--accent);
+    transition: all 0.2s ease;
     text-decoration: none;
+    line-height: 1.4;
+    cursor: pointer;
 }
 
 .btn-ghost:hover {
-    border-color: var(--ink);
-    color: var(--ink);
+    background: var(--accent);
+    color: var(--paper);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px var(--accent-light);
+    transform: translateY(-1px);
 }
 
 /* ------------------------------------------------------------------ */
@@ -1019,9 +1054,12 @@ select.form-input {
     gap: 1rem;
 }
 
+/* The "Add Expense" button is the primary table action: a solid accent pill. */
 .tx-add-btn {
-    padding: 0.4rem 1rem;
-    font-size: 0.85rem;
+    padding: 0.5rem 1.35rem;
+    background: var(--accent);
+    color: var(--paper);
+    border-color: var(--accent);
 }
 
 @media (max-width: 900px) {

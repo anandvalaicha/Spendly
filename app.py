@@ -3,16 +3,27 @@ import re
 import sqlite3
 from datetime import date, datetime
 
-from flask import Flask, redirect, render_template, request, session, url_for
+from flask import (
+    Flask,
+    abort,
+    flash,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from database.db import get_db, init_app, init_db
 from database.queries import (
     get_category_breakdown,
+    get_expense_by_id,
     get_recent_transactions,
     get_summary_stats,
     get_user_by_id,
     insert_expense,
+    update_expense,
 )
 
 app = Flask(__name__)
@@ -202,6 +213,7 @@ def login():
     session["user_id"] = user["id"]
     session["user_name"] = user["name"]
 
+    flash(f"Welcome back, {user['name']}!", "success")
     return redirect(url_for("profile"))
 
 
@@ -281,6 +293,7 @@ def profile():
         except ValueError:
             display_date = row["date"]
         transactions.append({
+            "id": row["id"],
             "date": display_date,
             "description": row["description"],
             "category": row["category"],
@@ -394,12 +407,87 @@ def add_expense():
         date_raw,
         description[:200] or None,
     )
+    flash("Expense added successfully.", "success")
     return redirect(url_for("profile"))
 
 
-@app.route("/expenses/<int:id>/edit")
+@app.route("/expenses/<int:id>/edit", methods=["GET", "POST"])
 def edit_expense(id):
-    return "Edit expense — coming in Step 8"
+    # Logged-out users are bounced to login for both GET and POST, mirroring the
+    # session guard used by add_expense() / profile().
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    # Ownership guard: fetch the expense scoped to the current user. A missing
+    # row or one owned by someone else both yield None -> 404. Runs for GET and
+    # POST, so a POST against another user's id is rejected before any update.
+    expense = get_expense_by_id(id, session["user_id"])
+    if expense is None:
+        abort(404)
+
+    if request.method == "GET":
+        return render_template(
+            "edit_expense.html",
+            categories=CATEGORIES,
+            expense_id=id,
+            amount=expense["amount"],
+            category=expense["category"],
+            date=expense["date"],
+            description=expense["description"] or "",
+        )
+
+    # --- POST: validate and update (same rules as add_expense) ---
+    amount_raw = request.form.get("amount", "").strip()
+    category = request.form.get("category", "").strip()
+    date_raw = request.form.get("date", "").strip()
+    description = request.form.get("description", "").strip()
+
+    # Values passed back so a failed submission redisplays what the user typed.
+    form_values = {
+        "amount": amount_raw,
+        "category": category,
+        "date": date_raw,
+        "description": description,
+    }
+
+    def reject(message):
+        return render_template(
+            "edit_expense.html",
+            categories=CATEGORIES,
+            expense_id=id,
+            error=message,
+            **form_values,
+        )
+
+    if not amount_raw:
+        return reject("Amount is required.")
+    try:
+        amount = float(amount_raw)
+    except ValueError:
+        return reject("Amount must be a number.")
+    if amount <= 0:
+        return reject("Amount must be greater than zero.")
+
+    if not category:
+        return reject("Category is required.")
+    if category not in CATEGORIES:
+        return reject("Please choose a valid category.")
+
+    if not date_raw:
+        return reject("Date is required.")
+    if parse_iso_date(date_raw) is None:
+        return reject("Please enter a valid date.")
+
+    update_expense(
+        id,
+        session["user_id"],
+        amount,
+        category,
+        date_raw,
+        description[:200] or None,
+    )
+    flash("Expense updated successfully.", "success")
+    return redirect(url_for("profile"))
 
 
 @app.route("/expenses/<int:id>/delete")
