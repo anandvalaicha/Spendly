@@ -94,19 +94,22 @@ def init_db():
 
 SEED_USERS = [
     # (name, email, plaintext password)
-    ("Nitish Kumar", "nitish@example.com", "demo1234"),
-    ("Anita Sharma", "anita@example.com", "demo1234"),
+    ("Demo User", "demo@spendly.com", "demo123"),
 ]
 
 # Expenses keyed by the owner's email so seeding stays readable.
+# Eight expenses across seven categories totalling 346.24, with "Bills" as the
+# single highest-spend category.
 # (email, amount, category, description, date)
 SEED_EXPENSES = [
-    ("nitish@example.com", 45.00, "Groceries", "Weekly groceries", "2026-06-01"),
-    ("nitish@example.com", 12.50, "Transport", "Metro card top-up", "2026-06-02"),
-    ("nitish@example.com", 800.00, "Rent", "June rent", "2026-06-03"),
-    ("nitish@example.com", 30.00, "Dining", "Dinner with friends", "2026-06-05"),
-    ("anita@example.com", 60.00, "Groceries", "Supermarket run", "2026-06-04"),
-    ("anita@example.com", 22.00, "Entertainment", "Movie tickets", "2026-06-06"),
+    ("demo@spendly.com", 89.99, "Bills", "Electricity bill", "2026-06-20"),
+    ("demo@spendly.com", 45.00, "Groceries", "Weekly groceries", "2026-06-18"),
+    ("demo@spendly.com", 18.75, "Groceries", "Corner store", "2026-06-10"),
+    ("demo@spendly.com", 52.40, "Dining", "Dinner out", "2026-06-15"),
+    ("demo@spendly.com", 30.10, "Transport", "Cab fares", "2026-06-12"),
+    ("demo@spendly.com", 27.00, "Entertainment", "Movie tickets", "2026-06-08"),
+    ("demo@spendly.com", 41.00, "Health", "Pharmacy", "2026-06-05"),
+    ("demo@spendly.com", 42.00, "Shopping", "New headphones", "2026-06-02"),
 ]
 
 
