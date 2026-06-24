@@ -1,7 +1,7 @@
 import os
 import re
 import sqlite3
-from datetime import datetime
+from datetime import date, datetime
 
 from flask import Flask, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -45,6 +45,54 @@ def slugify(name):
     """
     slug = re.sub(r"[^a-z0-9]+", "-", (name or "").lower())
     return slug.strip("-")
+
+
+def parse_iso_date(value):
+    """Return a valid ``YYYY-MM-DD`` string unchanged, or ``None`` if malformed.
+
+    Used to validate the ``date_from`` / ``date_to`` query params so a bad URL
+    degrades to an unfiltered view instead of raising.
+    """
+    if not value:
+        return None
+    try:
+        datetime.strptime(value, "%Y-%m-%d")
+    except ValueError:
+        return None
+    return value
+
+
+def subtract_months(d, months):
+    """Return ``d`` shifted back ``months`` calendar months, clamping the day.
+
+    Avoids a ``dateutil`` dependency. The day is clamped to the last valid day
+    of the target month (e.g. 31 Mar minus 1 month -> 28/29 Feb).
+    """
+    month_index = (d.year * 12 + (d.month - 1)) - months
+    year, month = divmod(month_index, 12)
+    month += 1
+    # Last day of the target month: day 1 of the next month minus one day.
+    if month == 12:
+        next_month_first = date(year + 1, 1, 1)
+    else:
+        next_month_first = date(year, month + 1, 1)
+    last_day = (next_month_first - date.resolution).day
+    return date(year, month, min(d.day, last_day))
+
+
+def build_presets(today):
+    """Return the quick-select preset ranges as ``{key: (from, to) or None}``.
+
+    "All Time" maps to ``None`` (no params / clean URL). Computed in the view —
+    never in the template.
+    """
+    today_str = today.strftime("%Y-%m-%d")
+    return {
+        "this_month": (today.replace(day=1).strftime("%Y-%m-%d"), today_str),
+        "last_3_months": (subtract_months(today, 3).strftime("%Y-%m-%d"), today_str),
+        "last_6_months": (subtract_months(today, 6).strftime("%Y-%m-%d"), today_str),
+        "all_time": None,
+    }
 
 
 # ------------------------------------------------------------------ #
@@ -146,6 +194,29 @@ def profile():
 
     user_id = session["user_id"]
 
+    # --- date filter ---
+    # Both bounds must be present and valid ISO dates for a filter to apply; a
+    # missing or malformed value degrades to an unfiltered ("All Time") view.
+    date_from = parse_iso_date(request.args.get("date_from"))
+    date_to = parse_iso_date(request.args.get("date_to"))
+
+    error = None
+    if date_from and date_to and date_from > date_to:
+        error = "Start date must be before end date."
+        date_from = date_to = None
+
+    # Only pass bounds to the queries when a complete, valid range is active.
+    range_from = date_from if (date_from and date_to) else None
+    range_to = date_to if (date_from and date_to) else None
+
+    presets = build_presets(date.today())
+    active_preset = next(
+        (key for key, bounds in presets.items()
+         if bounds == (range_from, range_to)
+         or (bounds is None and range_from is None)),
+        None,
+    )
+
     # --- user info ---
     record = get_user_by_id(user_id)
     # Stale session pointing at a deleted user — sign them out cleanly.
@@ -171,7 +242,7 @@ def profile():
     # Shape the recent expenses for display: friendly date, 2dp amount, and a
     # CSS slug for the category badge.
     transactions = []
-    for row in get_recent_transactions(user_id):
+    for row in get_recent_transactions(user_id, date_from=range_from, date_to=range_to):
         try:
             display_date = datetime.strptime(
                 row["date"], "%Y-%m-%d"
@@ -188,7 +259,7 @@ def profile():
 
     # --- summary ---
     # Format the numeric total for display; pass count and top category through.
-    stats = get_summary_stats(user_id)
+    stats = get_summary_stats(user_id, date_from=range_from, date_to=range_to)
     summary = {
         "total_spent": "{:,.2f}".format(stats["total_spent"]),
         "transaction_count": stats["transaction_count"],
@@ -205,13 +276,16 @@ def profile():
             "percent": cat["pct"],
             "slug": slugify(cat["name"]),
         }
-        for cat in get_category_breakdown(user_id)
+        for cat in get_category_breakdown(user_id, date_from=range_from, date_to=range_to)
     ]
 
     return render_template(
         "profile.html",
         user=user, summary=summary,
         transactions=transactions, categories=categories,
+        presets=presets, active_preset=active_preset,
+        date_from=range_from or "", date_to=range_to or "",
+        error=error,
     )
 
 
