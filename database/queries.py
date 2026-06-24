@@ -18,6 +18,19 @@ from datetime import datetime
 from database.db import get_db
 
 
+def _date_clause(date_from, date_to):
+    """Return ``(sql_fragment, params)`` for an inclusive date-range filter.
+
+    When both bounds are provided the fragment is ``" AND date BETWEEN ? AND ?"``
+    with the two values as parameters; otherwise an empty fragment and no params,
+    so callers behave exactly as if no filter were applied. The bounds are always
+    passed as query parameters — never string-formatted into the SQL.
+    """
+    if date_from and date_to:
+        return " AND date BETWEEN ? AND ?", [date_from, date_to]
+    return "", []
+
+
 def get_user_by_id(user_id):
     """Return ``{name, email, member_since}`` for a user, or ``None``.
 
@@ -49,24 +62,27 @@ def get_user_by_id(user_id):
     }
 
 
-def get_summary_stats(user_id):
+def get_summary_stats(user_id, date_from=None, date_to=None):
     """Return ``{total_spent, transaction_count, top_category}`` for a user.
 
     A user with no expenses returns zeros and ``top_category`` ``"—"``.
-    ``total_spent`` is numeric; the caller formats it for display.
+    ``total_spent`` is numeric; the caller formats it for display. When both
+    ``date_from`` and ``date_to`` are given, only expenses whose ``date`` falls
+    inside that inclusive range are counted.
     """
     db = get_db()
+    date_sql, date_params = _date_clause(date_from, date_to)
 
     row = db.execute(
         "SELECT COALESCE(SUM(amount), 0) AS total, COUNT(*) AS count "
-        "FROM expenses WHERE user_id = ?",
-        (user_id,),
+        "FROM expenses WHERE user_id = ?" + date_sql,
+        [user_id] + date_params,
     ).fetchone()
 
     top = db.execute(
-        "SELECT category FROM expenses WHERE user_id = ? "
-        "GROUP BY category ORDER BY SUM(amount) DESC LIMIT 1",
-        (user_id,),
+        "SELECT category FROM expenses WHERE user_id = ?" + date_sql
+        + " GROUP BY category ORDER BY SUM(amount) DESC LIMIT 1",
+        [user_id] + date_params,
     ).fetchone()
 
     return {
@@ -76,17 +92,20 @@ def get_summary_stats(user_id):
     }
 
 
-def get_recent_transactions(user_id, limit=10):
+def get_recent_transactions(user_id, limit=10, date_from=None, date_to=None):
     """Return up to ``limit`` of the user's expenses, newest first.
 
     Each item is ``{date, description, category, amount}`` with the raw ``date``
-    string and numeric ``amount``. A user with no expenses returns ``[]``.
+    string and numeric ``amount``. A user with no expenses returns ``[]``. When
+    both ``date_from`` and ``date_to`` are given, only expenses inside that
+    inclusive range are returned.
     """
     db = get_db()
+    date_sql, date_params = _date_clause(date_from, date_to)
     rows = db.execute(
         "SELECT date, description, category, amount FROM expenses "
-        "WHERE user_id = ? ORDER BY date DESC, id DESC LIMIT ?",
-        (user_id, limit),
+        "WHERE user_id = ?" + date_sql + " ORDER BY date DESC, id DESC LIMIT ?",
+        [user_id] + date_params + [limit],
     ).fetchall()
     return [
         {
@@ -99,18 +118,21 @@ def get_recent_transactions(user_id, limit=10):
     ]
 
 
-def get_category_breakdown(user_id):
+def get_category_breakdown(user_id, date_from=None, date_to=None):
     """Return the user's per-category spend as a list of ``{name, amount, pct}``.
 
     Ordered by ``amount`` descending. ``pct`` is an integer percentage of the
     grand total; the largest category absorbs any rounding remainder so the
-    percentages sum to exactly 100. A user with no expenses returns ``[]``.
+    percentages sum to exactly 100. A user with no expenses returns ``[]``. When
+    both ``date_from`` and ``date_to`` are given, only expenses inside that
+    inclusive range are counted.
     """
     db = get_db()
+    date_sql, date_params = _date_clause(date_from, date_to)
     rows = db.execute(
         "SELECT category, SUM(amount) AS total FROM expenses "
-        "WHERE user_id = ? GROUP BY category ORDER BY total DESC",
-        (user_id,),
+        "WHERE user_id = ?" + date_sql + " GROUP BY category ORDER BY total DESC",
+        [user_id] + date_params,
     ).fetchall()
 
     grand_total = sum(row["total"] for row in rows)
