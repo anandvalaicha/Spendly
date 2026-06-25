@@ -17,6 +17,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from database.db import get_db, init_app, init_db
 from database.queries import (
+    delete_expense as delete_expense_row,
     get_category_breakdown,
     get_expense_by_id,
     get_recent_transactions,
@@ -490,9 +491,21 @@ def edit_expense(id):
     return redirect(url_for("profile"))
 
 
-@app.route("/expenses/<int:id>/delete")
+@app.route("/expenses/<int:id>/delete", methods=["POST"])
 def delete_expense(id):
-    return "Delete expense — coming in Step 9"
+    # Logged-out users are bounced to login, mirroring the other expense routes.
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    # Ownership guard: reuse get_expense_by_id (scoped to user_id). A missing
+    # row or one owned by someone else both yield None -> 404.
+    expense = get_expense_by_id(id, session["user_id"])
+    if expense is None:
+        abort(404)
+
+    delete_expense_row(id, session["user_id"])
+    flash("Expense deleted.", "success")
+    return redirect(url_for("profile"))
 
 
 if __name__ == "__main__":

@@ -112,6 +112,22 @@ def update_expense(expense_id, user_id, amount, category, date, description):
     return cur.rowcount
 
 
+def delete_expense(expense_id, user_id):
+    """Delete one expense; commit; return the number of rows affected.
+
+    The ``WHERE`` clause is scoped to both ``id`` and ``user_id`` as an
+    ownership guard, so an attempt to delete an expense the user does not own
+    removes nothing and returns ``0``.
+    """
+    db = get_db()
+    cur = db.execute(
+        "DELETE FROM expenses WHERE id = ? AND user_id = ?",
+        (expense_id, user_id),
+    )
+    db.commit()
+    return cur.rowcount
+
+
 def get_summary_stats(user_id, date_from=None, date_to=None):
     """Return ``{total_spent, transaction_count, top_category}`` for a user.
 
