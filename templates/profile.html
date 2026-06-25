@@ -15,6 +15,7 @@
                 <p class="profile-email">{{ user.email }}</p>
                 <p class="profile-meta">Member since {{ user.member_since }}</p>
             </div>
+            <a href="{{ url_for('add_expense') }}" class="btn-ghost profile-add-btn"> + Add Expense</a>
         </div>
 
         <!-- Date filter bar -->
@@ -68,7 +69,7 @@
             <div class="tx-card">
                 <div class="tx-card-header">
                     <h2 class="profile-section-title">Recent transactions</h2>
-                    <a href="{{ url_for('add_expense') }}" class="btn-ghost tx-add-btn">Add Expense</a>
+                    <!-- <a href="{{ url_for('add_expense') }}" class="btn-ghost tx-add-btn">Add Expense</a> -->
                 </div>
                 <div class="tx-table-wrap">
                     <table class="tx-table">
