@@ -22,7 +22,7 @@
                 {% if current_user %}
                 <a href="{{ url_for('analytics') }}"
                    class="nav-link{% if request.endpoint == 'analytics' %} is-active{% endif %}">Analytics</a>
-                <a href="{{ url_for('profile') }}">{{ current_user.name or 'Profile' }}</a>
+                <a href="{{ url_for('profile') }}">Dashboard</a>
                 <a href="{{ url_for('logout') }}" class="nav-cta">Sign out</a>
                 {% else %}
                 <a href="{{ url_for('login') }}">Sign in</a>
