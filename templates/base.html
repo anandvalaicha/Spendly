@@ -20,8 +20,6 @@
             </a>
             <div class="nav-links">
                 {% if current_user %}
-                <a href="{{ url_for('add_expense') }}"
-                   class="nav-link{% if request.endpoint == 'add_expense' %} is-active{% endif %}">Add Expense</a>
                 <a href="{{ url_for('analytics') }}"
                    class="nav-link{% if request.endpoint == 'analytics' %} is-active{% endif %}">Analytics</a>
                 <a href="{{ url_for('profile') }}">{{ current_user.name or 'Profile' }}</a>
